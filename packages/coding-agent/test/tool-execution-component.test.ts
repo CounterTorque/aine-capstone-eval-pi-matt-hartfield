@@ -684,6 +684,7 @@ describe("ToolExecutionComponent parity", () => {
 		expect(expanded).toContain("hidden content");
 	});
 
+	const longOutsidePath = resolve(process.cwd(), "..", "long-directory-".repeat(10), "AGENTS.md");
 	for (const scenario of [
 		{
 			title: "SKILL.md",
@@ -718,6 +719,14 @@ describe("ToolExecutionComponent parity", () => {
 			absent: undefined,
 		},
 		{
+			title: "outside AGENTS.md with a long path",
+			path: longOutsidePath,
+			content: "Hidden outside resource instructions",
+			compact: `read resource ${longOutsidePath.replace(/\\/g, "/")}`,
+			hidden: "Hidden outside resource instructions",
+			absent: undefined,
+		},
+		{
 			title: "Pi documentation",
 			path: getReadmePath(),
 			content: "Hidden docs content",
@@ -741,7 +750,8 @@ describe("ToolExecutionComponent parity", () => {
 				false,
 			);
 
-			const collapsed = stripAnsi(component.render(120).join("\n"));
+			const width = Math.max(120, scenario.compact.length + 40);
+			const collapsed = stripAnsi(component.render(width).join("\n"));
 			expect(collapsed).toContain(scenario.compact);
 			expect(collapsed).not.toContain(scenario.hidden);
 			if (scenario.absent) {
@@ -749,7 +759,7 @@ describe("ToolExecutionComponent parity", () => {
 			}
 
 			component.setExpanded(true);
-			const expanded = stripAnsi(component.render(120).join("\n"));
+			const expanded = stripAnsi(component.render(width).join("\n"));
 			expect(expanded).toContain(scenario.hidden);
 		});
 	}
