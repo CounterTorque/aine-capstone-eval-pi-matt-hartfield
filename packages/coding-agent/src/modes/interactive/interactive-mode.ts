@@ -7,6 +7,7 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { stripVTControlCharacters } from "node:util";
 import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { AuthEvent, AuthPrompt } from "@earendil-works/pi-ai";
 import {
@@ -125,6 +126,7 @@ import type { FullscreenExitOutput, TuiMode } from "../../core/settings-manager.
 import { BUILTIN_SLASH_COMMANDS } from "../../core/slash-commands.ts";
 import { getSourcePackageKey, type SourceInfo } from "../../core/source-info.ts";
 import { isInstallTelemetryEnabled } from "../../core/telemetry.ts";
+import { scanTodos } from "../../core/todo-scan.ts";
 import { withBuiltInRenderers } from "../../core/tools/renderers/index.ts";
 import type { TruncationResult } from "../../core/tools/truncate.ts";
 import { hasTrustRequiringProjectResources, ProjectTrustStore } from "../../core/trust-manager.ts";
@@ -3388,6 +3390,11 @@ export class InteractiveMode {
 			if (text === "/session") {
 				this.handleSessionCommand();
 				this.editor.setText("");
+				return;
+			}
+			if (text === "/todos") {
+				this.editor.setText("");
+				await this.handleTodosCommand();
 				return;
 			}
 			if (text === "/changelog") {
@@ -6965,6 +6972,45 @@ export class InteractiveMode {
 		this.chatContainer.addChild(new Spacer(1));
 		this.chatContainer.addChild(new ThemedText(renderInfo, 1, 0));
 		this.ui.requestRender();
+	}
+
+	private async handleTodosCommand(): Promise<void> {
+		this.showStatus("Scanning for TODOs...");
+		try {
+			const { items, total } = await scanTodos(this.sessionManager.getCwd());
+			const files = new Map<string, typeof items>();
+			for (const item of items) {
+				const group = files.get(item.path) ?? [];
+				group.push(item);
+				files.set(item.path, group);
+			}
+			this.showStatus("TODO scan complete");
+			this.chatContainer.addChild(new Spacer(1));
+			this.chatContainer.addChild(new DynamicBorder());
+			this.chatContainer.addChild(
+				new ThemedText(
+					() => {
+						let output = theme.bold(`TODOs (${total})`);
+						if (total === 0) output += "\n\nNo TODO or FIXME markers found.";
+						for (const [file, group] of files) {
+							output += `\n\n${theme.fg("accent", stripVTControlCharacters(file).replace(/[\r\n]/g, " "))}`;
+							for (const item of group) {
+								output += `\n  ${theme.fg("dim", String(item.line))}  ${theme.fg(item.tag === "TODO" ? "warning" : "error", item.tag)} ${stripVTControlCharacters(item.text).replace(/[\r\n]/g, " ")}`;
+							}
+						}
+						if (total > items.length) output += `\n\nShowing ${items.length} of ${total} matching lines.`;
+						return output;
+					},
+					1,
+					0,
+				),
+			);
+			this.chatContainer.addChild(new DynamicBorder());
+			this.ui.requestRender();
+		} catch (error) {
+			this.showStatus("TODO scan failed");
+			this.showError(`Failed to scan TODOs: ${error instanceof Error ? error.message : String(error)}`);
+		}
 	}
 
 	private handleChangelogCommand(): void {

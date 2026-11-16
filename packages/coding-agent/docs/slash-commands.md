@@ -48,6 +48,7 @@ Review a session before exporting or sharing it. Sessions can contain prompts, t
 | `/trust` | Save a project trust decision for future Pi processes |
 | `/mcp` | Manage MCP servers: sign in, reconnect, enable or disable, and change exposure |
 | `/reload` | Reload keybindings, extensions, skills, templates, themes, and context files |
+| `/todos` | List lines containing whole-word `TODO` or `FIXME` markers in the working directory (up to 500; respects ignore files) |
 | `/hotkeys` | Show active keyboard shortcuts |
 | `/changelog` | Show changelog entries |
 | `/quit` | Quit Pi |
